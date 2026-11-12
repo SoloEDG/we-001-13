@@ -1,7 +1,7 @@
 import type { Battle, Point, Skill } from "../../../shared/types";
-import { findUnit } from "../../../shared/document";
+import { findUnit, key } from "../../../shared/document";
 import { legalTargets } from "../lib/targeting";
-import { previewDamage } from "../lib/damage";
+import { previewDamageFromHeights } from "../lib/damage";
 export function moveUnit(b: Battle, id: string, path: Point[]) {
   const u = findUnit(b, id);
   if (u.moved || u.acted || !path.length) throw new Error("本次行动无法移动");
@@ -15,13 +15,23 @@ export function castSkill(
   s: Skill,
   armor: number,
   cover: number,
-  elevated: boolean,
 ) {
   const u = findUnit(b, id),
     t = findUnit(b, target);
   if (u.acted || !legalTargets(b, u, s).some((v) => v.id === target))
     throw new Error("目标不合法");
-  const value = previewDamage(u, t, s, armor, cover, elevated);
+  const attackerHeight =
+    b.tiles.find((v) => key(v) === key(u))?.height ?? 0;
+  const targetHeight = b.tiles.find((v) => key(v) === key(t))?.height ?? 0;
+  const value = previewDamageFromHeights(
+    u,
+    t,
+    s,
+    armor,
+    cover,
+    attackerHeight,
+    targetHeight,
+  );
   t.hp =
     s.target === "ally"
       ? Math.min(t.maxHp, t.hp + value)

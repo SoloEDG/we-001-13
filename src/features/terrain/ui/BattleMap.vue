@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Battle, Point } from "../../../shared/types";
+import type { Battle, Point, Tile } from "../../../shared/types";
 import { key } from "../../../shared/document";
 import { terrainRules } from "../lib/cost";
 defineProps<{
@@ -10,6 +10,24 @@ defineProps<{
   path: Point[];
 }>();
 defineEmits<{ cell: [point: Point] }>();
+const sides = ["n", "e", "s", "w"] as const;
+const neighbours = (tiles: Tile[], tile: Tile) =>
+  ({
+    n: tiles.find((t) => t.x === tile.x && t.y === tile.y - 1),
+    e: tiles.find((t) => t.x === tile.x + 1 && t.y === tile.y),
+    s: tiles.find((t) => t.x === tile.x && t.y === tile.y + 1),
+    w: tiles.find((t) => t.x === tile.x - 1 && t.y === tile.y),
+  }) as Record<(typeof sides)[number], Tile | undefined>;
+/** 等高关系：在较低的一侧标出相邻格更高的边缘，使每条坡面只出现一次金色轮廓。 */
+function edges(tiles: Tile[], tile: Tile) {
+  const around = neighbours(tiles, tile);
+  return sides
+    .filter((side) => {
+      const other = around[side];
+      return other && other.height > tile.height;
+    })
+    .map((side) => ({ side }));
+}
 </script>
 <template>
   <section class="map-frame">
@@ -21,6 +39,7 @@ defineEmits<{ cell: [point: Point] }>();
         v-for="tile in battle.tiles"
         :key="key(tile)"
         :data-cell="key(tile)"
+        :data-height="tile.height"
         :class="[
           'tile',
           tile.terrain,
@@ -30,10 +49,19 @@ defineEmits<{ cell: [point: Point] }>();
             trail: path.some((p) => key(p) === key(tile)),
           },
         ]"
-        :aria-label="`${tile.x},${tile.y} ${terrainRules[tile.terrain].name}`"
+        :aria-label="`${tile.x},${tile.y} ${terrainRules[tile.terrain].name} · 高度 ${tile.height}`"
         @click="$emit('cell', tile)"
       >
-        <span class="ground">{{ terrainRules[tile.terrain].glyph }}</span
+        <span class="relief" /><span class="ground">{{
+          terrainRules[tile.terrain].glyph
+        }}</span
+        ><span
+          v-for="edge in edges(battle.tiles, tile)"
+          :key="edge.side"
+          :class="['edge', `edge-${edge.side}`, 'edge-up']"
+        /><span v-if="tile.height" class="height-mark">{{
+          tile.height
+        }}</span
         ><template
           v-for="unit in battle.units.filter(
             (u) => u.hp > 0 && key(u) === key(tile),
@@ -64,7 +92,7 @@ defineEmits<{ cell: [point: Point] }>();
       </button>
     </div>
     <div class="map-caption">
-      <span>浅滩纵贯南北 · 中央石桥可快速渡河</span
+      <span>坡面按高度着色 · 金色边缘表示相邻格更高</span
       ><span>◇ 当前行动　● 可移动　◈ 技能目标</span>
     </div>
   </section>

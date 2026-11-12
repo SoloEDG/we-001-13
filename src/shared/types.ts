@@ -1,11 +1,17 @@
-export type Terrain = "plain" | "forest" | "water" | "ridge" | "wall";
+export type Terrain = "plain" | "forest" | "water" | "wall";
 export type Profession = "guard" | "ranger" | "mage" | "medic";
+/** 高度与地形正交：0 为基准面，逐级叠加在密林、浅滩等原地形之上。 */
+export const HEIGHT_MIN = 0;
+export const HEIGHT_MAX = 4;
+/** 旧版“高地”地形的迁移高度；配合每级 +2 伤害，保留原有高地 +2 的手感。 */
+export const RIDGE_HEIGHT = 1;
 export interface Point {
   x: number;
   y: number;
 }
 export interface Tile extends Point {
   terrain: Terrain;
+  height: number;
 }
 export interface Status {
   kind: "slow" | "burn" | "guard";
@@ -34,7 +40,7 @@ export interface Battle {
   active: string;
   ended: string | null;
 }
-export type EventKind = "move" | "skill" | "wait" | "terrain";
+export type EventKind = "move" | "skill" | "wait" | "terrain" | "height";
 export interface BattleEvent {
   id: number;
   kind: EventKind;
@@ -58,3 +64,13 @@ export interface Skill {
   status?: Status["kind"];
   description: string;
 }
+export interface TerrainBrush {
+  kind: "terrain";
+  terrain: Terrain;
+}
+export interface HeightBrush {
+  kind: "height";
+  height: number;
+}
+/** 地形笔刷与高度笔刷互斥；高度永远叠加在原地形之上。 */
+export type Brush = TerrainBrush | HeightBrush;

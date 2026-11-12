@@ -353,11 +353,105 @@ aside {
 .tile.water {
   background: #2e5051;
 }
-.tile.ridge {
-  background: #66614a;
-}
 .tile.wall {
   background: #30342e;
+}
+/* 高度图层：原地形之上叠加等高色阶（.relief 位于棋子下层）；坡面边缘作为子元素绘制。 */
+.relief {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: #e7d49a;
+  mix-blend-mode: soft-light;
+  opacity: 0;
+}
+.tile[data-height="1"] .relief {
+  opacity: 0.3;
+}
+.tile[data-height="2"] .relief {
+  opacity: 0.48;
+}
+.tile[data-height="3"] .relief {
+  opacity: 0.64;
+}
+.tile[data-height="4"] .relief {
+  opacity: 0.8;
+}
+.edge {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+}
+.edge-n,
+.edge-s {
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+.edge-e,
+.edge-w {
+  top: 0;
+  bottom: 0;
+  width: 3px;
+}
+.edge-n {
+  top: 0;
+}
+.edge-s {
+  bottom: 0;
+}
+.edge-e {
+  right: 0;
+}
+.edge-w {
+  left: 0;
+}
+.edge-up {
+  background: #e4c06a;
+  box-shadow: 0 0 4px #e4c06a99;
+}
+.height-mark {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  font-size: 8px;
+  color: #f0e2b0;
+  background: #1b271ecc;
+  padding: 0 3px;
+  border-radius: 2px;
+  z-index: 5;
+}
+.height-heading {
+  margin: 16px 0 6px;
+  font-weight: 500;
+}
+.height-heading small {
+  display: block;
+  font-size: 9px;
+  font-weight: 400;
+  color: #839c8a;
+  margin-top: 4px;
+}
+.height-list {
+  display: flex;
+  gap: 4px;
+}
+.height-list button {
+  flex: 1;
+  background: transparent;
+  border-color: #3c4b3c;
+  padding: 6px 0;
+}
+.height-list b {
+  font-size: 13px;
+  color: #c6bb84;
+}
+.climb-note {
+  font-size: 9px;
+  line-height: 1.6;
+  color: #80958a;
+  margin: 8px 0 0;
 }
 .tile.reachable {
   box-shadow: inset 0 0 0 1px #79b9b58a;

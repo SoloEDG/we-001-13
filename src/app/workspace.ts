@@ -1,14 +1,15 @@
 import { computed, reactive, ref } from "vue";
-import type { Point, Terrain } from "../shared/types";
-import { clone, findUnit, key } from "../shared/document";
-import { reachable, terrainRules, paintTile } from "../features/terrain";
-import { moveBudget, armorValue, tickStatuses } from "../features/roster";
+import type { Brush, Point } from "../shared/types";
+import { clone, findUnit, key, tileHeight } from "../shared/document";
 import {
-  getSkill,
-  legalTargets,
-  moveUnit,
-  castSkill,
-} from "../features/tactics";
+  reachable,
+  terrainRules,
+  paintTile,
+  paintHeight,
+  clampHeight,
+} from "../features/terrain";
+import { moveBudget, armorValue, tickStatuses } from "../features/roster";
+import { getSkill, legalTargets, moveUnit, castSkill } from "../features/tactics";
 import { finishTurn } from "../features/initiative";
 import {
   record,
@@ -23,7 +24,7 @@ export function useWorkspace() {
   const cursor = ref(-1),
     selected = ref(session.live.active),
     skill = ref(""),
-    brush = ref<Terrain | null>(null),
+    brush = ref<Brush | null>(null),
     notice = ref("选择蓝色格移动，或选择技能指定目标。");
   const playback = usePlayback(
     () => session.events.length,
@@ -49,21 +50,28 @@ export function useWorkspace() {
       const before = clone(session.live),
         u = actor.value;
       if (brush.value) {
-        paintTile(session.live, p, brush.value);
+        const previous = tileHeight(session.live, p);
+        let next = previous;
+        if (brush.value.kind === "terrain") {
+          paintTile(session.live, p, brush.value.terrain);
+        } else {
+          next = clampHeight(brush.value.height);
+          if (next === previous) return;
+          paintHeight(session.live, p, next);
+        }
         record(
           session,
           before,
-          "terrain",
-          `地形调整为${terrainRules[brush.value].name}`,
+          brush.value.kind === "terrain" ? "terrain" : "height",
+          brush.value.kind === "terrain"
+            ? `地形调整为${terrainRules[brush.value.terrain].name}`
+            : `高度 ${previous} → ${next}`,
         );
       } else if (skill.value) {
         const s = getSkill(u.job, skill.value)!;
         const t = session.live.units.find((t) => t.hp > 0 && key(t) === key(p));
         if (!t) throw new Error("请点击合法角色");
         const ground = session.live.tiles.find((v) => key(v) === key(t))!;
-        const high =
-          session.live.tiles.find((v) => key(v) === key(u))!.terrain ===
-          "ridge";
         const value = castSkill(
           session.live,
           u.id,
@@ -71,7 +79,6 @@ export function useWorkspace() {
           s,
           armorValue(t),
           terrainRules[ground.terrain].cover,
-          high,
         );
         record(
           session,
@@ -83,7 +90,7 @@ export function useWorkspace() {
       } else {
         const route = routes.value.get(key(p));
         if (!route?.path.length)
-          throw new Error("此格不可达，请检查地形与占位");
+          throw new Error("此格不可达，请检查地形、坡度与占位");
         moveUnit(session.live, u.id, route.path);
         record(
           session,
@@ -95,6 +102,14 @@ export function useWorkspace() {
       }
       saveArchive(session);
       notice.value = session.events.at(-1)!.label;
+      // 高度编辑可能把当前角色围在陡壁中：站位保留，但及时提示可达区已收缩。
+      if (brush.value?.kind === "height") {
+        const current = findUnit(session.live, session.live.active);
+        const budget = moveBudget(current);
+        const map = reachable(session.live, current, budget);
+        if (map.size <= 1 && !locked.value)
+          notice.value = `${notice.value} · 角色被陡壁孤立，可达区已重算`;
+      }
     } catch (e) {
       notice.value = (e as Error).message;
     }

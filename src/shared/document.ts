@@ -1,4 +1,5 @@
 import type { Battle, Point, Unit } from "./types";
+import { HEIGHT_MAX, HEIGHT_MIN } from "./types";
 export const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 export const key = (p: Point) => `${p.x},${p.y}`;
 export const distance = (a: Point, b: Point) =>
@@ -9,6 +10,9 @@ export const findUnit = (b: Battle, id: string): Unit => {
   if (!u) throw new Error("角色不存在");
   return u;
 };
+export function tileHeight(b: Battle, p: Point) {
+  return b.tiles.find((t) => key(t) === key(p))?.height ?? 0;
+}
 export function assertBattle(b: Battle) {
   if (b.tiles.length !== 96 || new Set(b.tiles.map(key)).size !== 96)
     throw new Error("地图数据不完整");
@@ -17,4 +21,11 @@ export function assertBattle(b: Battle) {
     new Set(b.units.map((u) => u.id)).size !== b.units.length
   )
     throw new Error("角色数据不完整");
+  for (const t of b.tiles)
+    if (
+      !Number.isInteger(t.height) ||
+      t.height < HEIGHT_MIN ||
+      t.height > HEIGHT_MAX
+    )
+      throw new Error("地形高度数据损坏");
 }
